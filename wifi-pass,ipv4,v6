@@ -1,0 +1,54 @@
+# Get IP addresses using ipconfig and parse the output
+try {
+    $ipConfigOutput = ipconfig | Out-String
+
+    # Extract IPv4 addresses
+    $ipv4Addresses = $ipConfigOutput | Select-String -Pattern "IPv4 Address[^\:]*: (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})" | ForEach-Object {
+        $_.Matches[0].Groups[1].Value.Trim()
+    }
+
+    # Extract IPv6 addresses
+    $ipv6Addresses = $ipConfigOutput | Select-String -Pattern "IPv6 Address[^\:]*: ([\w\:]+)" | ForEach-Object {
+        $_.Matches[0].Groups[1].Value.Trim()
+    }
+
+    Write-Host "IPv4 Addresses:"
+    if ($ipv4Addresses) {
+        $ipv4Addresses | ForEach-Object { Write-Host " - $_" }
+    } else {
+        Write-Host "No IPv4 addresses found."
+    }
+
+    Write-Host "`nIPv6 Addresses:"
+    if ($ipv6Addresses) {
+        $ipv6Addresses | ForEach-Object { Write-Host " - $_" }
+    } else {
+        Write-Host "No IPv6 addresses found."
+    }
+} catch {
+    Write-Host "Error retrieving IP addresses: $_"
+}
+
+# Get Wi-Fi profile names and passwords
+try {
+    $wifiProfiles = netsh wlan show profiles | Select-String -Pattern "All User Profile\s*: (.*)$" | ForEach-Object {
+        $_.Matches[0].Groups[1].Value.Trim()
+    }
+
+    if ($wifiProfiles) {
+        Write-Host "`nWi-Fi Information:"
+        foreach ($profile in $wifiProfiles) {
+            $profileName = $profile.Trim()
+            $profileInfo = netsh wlan show profile name="$profileName" key=clear
+            $wifiPasswordMatch = ($profileInfo | Select-String "Key Content\s*: (.*)$").Matches[0].Groups[1].Value
+            $wifiPassword = if ($wifiPasswordMatch) { $wifiPasswordMatch.Trim() } else { "Not available" }
+
+            Write-Host "`nWi-Fi Name: $profileName"
+            Write-Host "Wi-Fi Password: $wifiPassword"
+        }
+    } else {
+        Write-Host "No Wi-Fi profiles found."
+    }
+} catch {
+    Write-Host "Error retrieving Wi-Fi information: $_"
+}
